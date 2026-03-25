@@ -379,7 +379,7 @@ const TeacherDashboard = () => {
                   ) : exams.length === 0 ? (
                     <EmptyExams />
                   ) : (
-                    <ExamsList exams={exams.slice(0, 5)} sessionCounts={sessionCounts} statusColors={statusColors} onStart={handleStartExam} toast={toast} />
+                    <ExamsList exams={exams.slice(0, 5)} sessionCounts={sessionCounts} statusColors={statusColors} onStart={handleStartExam} onEdit={openEditExam} onDelete={setDeletingExamId} toast={toast} />
                   )}
                 </CardContent>
               </Card>
@@ -400,7 +400,7 @@ const TeacherDashboard = () => {
                 ) : exams.length === 0 ? (
                   <EmptyExams />
                 ) : (
-                  <ExamsList exams={exams} sessionCounts={sessionCounts} statusColors={statusColors} onStart={handleStartExam} toast={toast} />
+                  <ExamsList exams={exams} sessionCounts={sessionCounts} statusColors={statusColors} onStart={handleStartExam} onEdit={openEditExam} onDelete={setDeletingExamId} toast={toast} />
                 )}
               </CardContent>
             </Card>
@@ -538,6 +538,53 @@ const TeacherDashboard = () => {
             </div>
           )}
         </div>
+
+        {/* Edit Exam Dialog */}
+        <Dialog open={!!editingExam} onOpenChange={(open) => !open && setEditingExam(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Exam</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Duration (minutes)</Label>
+                <Input type="number" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingExam(null)}>Cancel</Button>
+              <Button onClick={handleEditExam} disabled={editSaving} className="gradient-primary border-0 text-primary-foreground hover:opacity-90">
+                {editSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Exam Confirmation */}
+        <AlertDialog open={!!deletingExamId} onOpenChange={(open) => !open && setDeletingExamId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the exam, all its questions, student sessions, and answers. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteExam} disabled={deleteLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleteLoading ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
@@ -560,10 +607,12 @@ interface ExamsListProps {
   sessionCounts: Record<string, number>;
   statusColors: Record<string, string>;
   onStart: (id: string) => void;
+  onEdit: (exam: Exam) => void;
+  onDelete: (id: string) => void;
   toast: any;
 }
 
-const ExamsList = ({ exams, sessionCounts, statusColors, onStart, toast }: ExamsListProps) => (
+const ExamsList = ({ exams, sessionCounts, statusColors, onStart, onEdit, onDelete, toast }: ExamsListProps) => (
   <div className="space-y-3">
     {exams.map((exam) => (
       <div key={exam.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/50 transition-colors">
@@ -587,6 +636,12 @@ const ExamsList = ({ exams, sessionCounts, statusColors, onStart, toast }: Exams
               <Play className="h-3.5 w-3.5" /> Start
             </Button>
           )}
+          <Button size="sm" variant="ghost" onClick={() => onEdit(exam)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDelete(exam.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/exam/${exam.access_code}`); toast({ title: "Link copied!" }); }}>
             <Eye className="h-4 w-4" />
           </Button>
