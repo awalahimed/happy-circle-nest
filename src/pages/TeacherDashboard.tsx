@@ -3,38 +3,75 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   BookOpen, Plus, FileText, Users, BarChart3, LogOut,
-  LayoutDashboard, Settings, ChevronRight, Play, Loader2, Eye,
+  LayoutDashboard, Settings, Play, Loader2, Eye, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Exam = Tables<"exams">;
 
+type ActiveTab = "dashboard" | "exams" | "reports" | "settings";
+
+interface StudentReport {
+  sessionId: string;
+  studentName: string;
+  studentEmail: string;
+  examTitle: string;
+  examSubject: string;
+  score: number | null;
+  totalMarks: number | null;
+  status: string;
+  submittedAt: string | null;
+  correct: number;
+  incorrect: number;
+  unanswered: number;
+  totalQuestions: number;
+}
+
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionCounts, setSessionCounts] = useState<Record<string, number>>({});
   const [userName, setUserName] = useState("Teacher");
+  const [userId, setUserId] = useState("");
+
+  // Reports state
+  const [reports, setReports] = useState<StudentReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
+
+  // Settings state
+  const [profileName, setProfileName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/login"); return; }
+      setUserId(session.user.id);
 
-      // Load profile
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, email")
         .eq("id", session.user.id)
         .single();
-      if (profile) setUserName(profile.full_name || profile.email || "Teacher");
+      if (profile) {
+        setUserName(profile.full_name || profile.email || "Teacher");
+        setProfileName(profile.full_name || "");
+        setProfileEmail(profile.email || "");
+      }
 
-      // Load exams
       const { data, error } = await supabase
         .from("exams")
         .select("*")
@@ -45,7 +82,6 @@ const TeacherDashboard = () => {
         toast({ title: "Error loading exams", description: error.message, variant: "destructive" });
       } else {
         setExams(data || []);
-        // Fetch student counts per exam
         if (data && data.length > 0) {
           const counts: Record<string, number> = {};
           for (const exam of data) {
@@ -62,6 +98,80 @@ const TeacherDashboard = () => {
     };
     init();
   }, [navigate, toast]);
+
+  // Load reports when tab switches
+  useEffect(() => {
+    if (activeTab === "reports" && exams.length > 0 && reports.length === 0) {
+      loadReports();
+    }
+  }, [activeTab, exams]);
+
+  const loadReports = async () => {
+    setReportsLoading(true);
+    try {
+      const examIds = exams.map((e) => e.id);
+      const { data: sessions } = await supabase
+        .from("exam_sessions")
+        .select("*")
+        .in("exam_id", examIds);
+
+      if (!sessions || sessions.length === 0) {
+        setReports([]);
+        setReportsLoading(false);
+        return;
+      }
+
+      // Get all questions for these exams
+      const { data: questions } = await supabase
+        .from("questions")
+        .select("*")
+        .in("exam_id", examIds);
+
+      // Get all answers for these sessions
+      const sessionIds = sessions.map((s) => s.id);
+      const { data: answers } = await supabase
+        .from("student_answers")
+        .select("*")
+        .in("session_id", sessionIds);
+
+      const examMap = Object.fromEntries(exams.map((e) => [e.id, e]));
+      const questionsPerExam: Record<string, number> = {};
+      (questions || []).forEach((q) => {
+        questionsPerExam[q.exam_id] = (questionsPerExam[q.exam_id] || 0) + 1;
+      });
+
+      const studentReports: StudentReport[] = sessions.map((session) => {
+        const sessionAnswers = (answers || []).filter((a) => a.session_id === session.id);
+        const totalQ = questionsPerExam[session.exam_id] || 0;
+        const correct = sessionAnswers.filter((a) => a.is_correct === true).length;
+        const incorrect = sessionAnswers.filter((a) => a.is_correct === false).length;
+        const answered = sessionAnswers.filter((a) => a.selected_answer).length;
+        const unanswered = totalQ - answered;
+        const exam = examMap[session.exam_id];
+
+        return {
+          sessionId: session.id,
+          studentName: session.student_name,
+          studentEmail: session.student_email,
+          examTitle: exam?.title || "Unknown",
+          examSubject: exam?.subject || "",
+          score: session.score,
+          totalMarks: session.total_marks,
+          status: session.status,
+          submittedAt: session.submitted_at,
+          correct,
+          incorrect,
+          unanswered,
+          totalQuestions: totalQ,
+        };
+      });
+
+      setReports(studentReports);
+    } catch (err: any) {
+      toast({ title: "Error loading reports", description: err.message, variant: "destructive" });
+    }
+    setReportsLoading(false);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -81,6 +191,21 @@ const TeacherDashboard = () => {
     }
   };
 
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: profileName })
+      .eq("id", userId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setUserName(profileName);
+      toast({ title: "Profile updated!" });
+    }
+    setSavingProfile(false);
+  };
+
   const totalStudents = Object.values(sessionCounts).reduce((a, b) => a + b, 0);
   const activeExams = exams.filter((e) => e.status === "active").length;
 
@@ -97,6 +222,21 @@ const TeacherDashboard = () => {
     completed: "bg-muted text-muted-foreground",
   };
 
+  const navItems: { icon: typeof LayoutDashboard; label: string; tab: ActiveTab }[] = [
+    { icon: LayoutDashboard, label: "Dashboard", tab: "dashboard" },
+    { icon: FileText, label: "My Exams", tab: "exams" },
+    { icon: BarChart3, label: "Reports", tab: "reports" },
+    { icon: Settings, label: "Settings", tab: "settings" },
+  ];
+
+  const getScoreColor = (score: number | null, total: number | null) => {
+    if (score == null || total == null || total === 0) return "text-muted-foreground";
+    const pct = (score / total) * 100;
+    if (pct >= 70) return "text-success";
+    if (pct >= 40) return "text-amber-500";
+    return "text-destructive";
+  };
+
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
@@ -108,16 +248,12 @@ const TeacherDashboard = () => {
           <span className="font-bold text-lg">ExamFlow</span>
         </div>
         <nav className="flex-1 px-3 space-y-1">
-          {[
-            { icon: LayoutDashboard, label: "Dashboard", active: true },
-            { icon: FileText, label: "My Exams" },
-            { icon: BarChart3, label: "Reports" },
-            { icon: Settings, label: "Settings" },
-          ].map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.label}
+              onClick={() => setActiveTab(item.tab)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                item.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                activeTab === item.tab ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               <item.icon className="h-4 w-4" />
@@ -137,93 +273,269 @@ const TeacherDashboard = () => {
         <header className="sticky top-0 z-40 glass border-b border-border/50 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Dashboard</h1>
+              <h1 className="text-2xl font-bold capitalize">{activeTab === "dashboard" ? "Dashboard" : activeTab === "exams" ? "My Exams" : activeTab === "reports" ? "Reports" : "Settings"}</h1>
               <p className="text-sm text-muted-foreground">Welcome back, {userName}</p>
             </div>
-            <Button asChild className="gap-2 gradient-primary border-0 text-primary-foreground hover:opacity-90">
-              <Link to="/teacher/create"><Plus className="h-4 w-4" /> Create Exam</Link>
-            </Button>
+            {(activeTab === "dashboard" || activeTab === "exams") && (
+              <Button asChild className="gap-2 gradient-primary border-0 text-primary-foreground hover:opacity-90">
+                <Link to="/teacher/create"><Plus className="h-4 w-4" /> Create Exam</Link>
+              </Button>
+            )}
           </div>
         </header>
 
         <div className="p-6 space-y-6">
-          {/* Stats */}
-          <div className="grid gap-4 md:grid-cols-3">
-            {stats.map((stat, i) => (
-              <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
-                <Card className="border-border/50 hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{stat.label}</p>
-                        <p className="text-3xl font-bold mt-1">{stat.value}</p>
-                      </div>
-                      <div className={`h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center ${stat.color}`}>
-                        <stat.icon className="h-6 w-6" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+          {/* Dashboard Tab */}
+          {activeTab === "dashboard" && (
+            <>
+              <div className="grid gap-4 md:grid-cols-3">
+                {stats.map((stat, i) => (
+                  <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+                    <Card className="border-border/50 hover:shadow-md transition-shadow">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-muted-foreground">{stat.label}</p>
+                            <p className="text-3xl font-bold mt-1">{stat.value}</p>
+                          </div>
+                          <div className={`h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center ${stat.color}`}>
+                            <stat.icon className="h-6 w-6" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
 
-          {/* Exams List */}
-          <Card className="border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg">Your Exams</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : exams.length === 0 ? (
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-                  <p className="text-muted-foreground">No exams yet. Create your first exam!</p>
-                  <Button asChild className="mt-4 gap-2 gradient-primary border-0 text-primary-foreground hover:opacity-90">
-                    <Link to="/teacher/create"><Plus className="h-4 w-4" /> Create Exam</Link>
+              {/* Recent exams */}
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Exams</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : exams.length === 0 ? (
+                    <EmptyExams />
+                  ) : (
+                    <ExamsList exams={exams.slice(0, 5)} sessionCounts={sessionCounts} statusColors={statusColors} onStart={handleStartExam} toast={toast} />
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {/* My Exams Tab */}
+          {activeTab === "exams" && (
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">All Exams</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : exams.length === 0 ? (
+                  <EmptyExams />
+                ) : (
+                  <ExamsList exams={exams} sessionCounts={sessionCounts} statusColors={statusColors} onStart={handleStartExam} toast={toast} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Reports Tab */}
+          {activeTab === "reports" && (
+            <Card className="border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Student Reports</CardTitle>
+                  <Button variant="outline" size="sm" onClick={loadReports} disabled={reportsLoading}>
+                    {reportsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {exams.map((exam) => (
-                    <div key={exam.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                          <FileText className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{exam.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {exam.subject} · {sessionCounts[exam.id] || 0} students · {exam.duration_minutes} min
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${statusColors[exam.status] || statusColors.draft}`}>
-                          {exam.status}
-                        </span>
-                        {exam.status === "published" && (
-                          <Button size="sm" variant="outline" className="gap-1.5 text-success border-success/20 hover:bg-success/10" onClick={() => handleStartExam(exam.id)}>
-                            <Play className="h-3.5 w-3.5" /> Start
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/exam/${exam.access_code}`); toast({ title: "Link copied!" }); }}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                {reportsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : reports.length === 0 ? (
+                  <div className="text-center py-12">
+                    <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                    <p className="text-muted-foreground">No student submissions yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Exam</TableHead>
+                          <TableHead className="text-center">Score</TableHead>
+                          <TableHead className="text-center text-success">Correct</TableHead>
+                          <TableHead className="text-center text-destructive">Incorrect</TableHead>
+                          <TableHead className="text-center text-muted-foreground">Unanswered</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {reports.map((r) => (
+                          <TableRow key={r.sessionId} className="group">
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{r.studentName}</p>
+                                <p className="text-xs text-muted-foreground">{r.studentEmail}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{r.examTitle}</p>
+                                <p className="text-xs text-muted-foreground">{r.examSubject}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className={`font-bold ${getScoreColor(r.score, r.totalMarks)}`}>
+                                {r.score ?? "—"}/{r.totalMarks ?? "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="border-success/30 text-success bg-success/5">
+                                {r.correct}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="border-destructive/30 text-destructive bg-destructive/5">
+                                {r.incorrect}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="border-border text-muted-foreground">
+                                {r.unanswered}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${
+                                r.status === "submitted" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                              }`}>
+                                {r.status}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {r.totalQuestions} Q
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Settings Tab */}
+          {activeTab === "settings" && (
+            <div className="space-y-6 max-w-lg">
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Profile Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Full Name</Label>
+                    <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input value={profileEmail} disabled className="bg-muted" />
+                    <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
+                  </div>
+                  <Button onClick={handleSaveProfile} disabled={savingProfile} className="gradient-primary border-0 text-primary-foreground hover:opacity-90">
+                    {savingProfile ? "Saving..." : "Save Changes"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Account</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Your account is managed by the administrator. Contact your admin for password resets or account changes.
+                  </p>
+                  <Button variant="outline" className="text-destructive border-destructive/20 hover:bg-destructive/10" onClick={handleLogout}>
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
     </div>
   );
 };
+
+// --- Sub-components ---
+
+const EmptyExams = () => (
+  <div className="text-center py-12">
+    <FileText className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+    <p className="text-muted-foreground">No exams yet. Create your first exam!</p>
+    <Button asChild className="mt-4 gap-2 gradient-primary border-0 text-primary-foreground hover:opacity-90">
+      <Link to="/teacher/create"><Plus className="h-4 w-4" /> Create Exam</Link>
+    </Button>
+  </div>
+);
+
+interface ExamsListProps {
+  exams: Exam[];
+  sessionCounts: Record<string, number>;
+  statusColors: Record<string, string>;
+  onStart: (id: string) => void;
+  toast: any;
+}
+
+const ExamsList = ({ exams, sessionCounts, statusColors, onStart, toast }: ExamsListProps) => (
+  <div className="space-y-3">
+    {exams.map((exam) => (
+      <div key={exam.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/50 transition-colors">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-medium">{exam.title}</p>
+            <p className="text-sm text-muted-foreground">
+              {exam.subject} · {sessionCounts[exam.id] || 0} students · {exam.duration_minutes} min
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${statusColors[exam.status] || statusColors.draft}`}>
+            {exam.status}
+          </span>
+          {exam.status === "published" && (
+            <Button size="sm" variant="outline" className="gap-1.5 text-success border-success/20 hover:bg-success/10" onClick={() => onStart(exam.id)}>
+              <Play className="h-3.5 w-3.5" /> Start
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/exam/${exam.access_code}`); toast({ title: "Link copied!" }); }}>
+            <Eye className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export default TeacherDashboard;
