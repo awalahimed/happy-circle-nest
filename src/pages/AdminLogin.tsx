@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { BookOpen, User, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+const ADMIN_EMAIL = "nanbondev@gmail.com";
+
 const AdminLogin = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -23,13 +24,22 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast({ title: "Account created!", description: "Check your email to verify your account." });
+      // Resolve email: if username is "admin", use the admin email; otherwise treat as email
+      const email = username.toLowerCase() === "admin" ? ADMIN_EMAIL : username;
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      // Check role to determine redirect
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id);
+
+      const isAdmin = roles?.some((r) => r.role === "admin");
+      if (isAdmin) {
+        navigate("/admin");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
         navigate("/teacher");
       }
     } catch (error: any) {
@@ -79,25 +89,23 @@ const AdminLogin = () => {
 
           <Card className="border-border/50 shadow-xl">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold">
-                {isSignUp ? "Create an account" : "Sign in"}
-              </CardTitle>
+              <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
               <CardDescription>
-                {isSignUp ? "Enter your details to get started" : "Enter your credentials to access your dashboard"}
+                Enter your credentials to access your dashboard
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="username">Username or Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      id="username"
+                      type="text"
+                      placeholder="admin or teacher@school.edu"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
                       className="pl-10"
                       required
                     />
@@ -130,18 +138,9 @@ const AdminLogin = () => {
                   disabled={loading}
                   className="w-full gradient-primary border-0 text-primary-foreground hover:opacity-90 h-11"
                 >
-                  {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
+                  {loading ? "Please wait..." : "Sign In"}
                 </Button>
               </form>
-              <div className="mt-6 text-center text-sm text-muted-foreground">
-                {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-                <button
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {isSignUp ? "Sign in" : "Sign up"}
-                </button>
-              </div>
             </CardContent>
           </Card>
 

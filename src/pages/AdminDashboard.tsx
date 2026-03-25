@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   BookOpen, Users, FileText, BarChart3, Settings, LogOut,
   LayoutDashboard, UserPlus, TrendingUp, Activity, Loader2,
-  Trash2, ChevronDown, ChevronUp, Eye,
+  Trash2, ChevronDown, ChevronUp, Pencil, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
+import * as XLSX from "xlsx";
 
 type Exam = Tables<"exams">;
 
@@ -47,18 +48,22 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
 
-  // Data
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<SessionRow[]>([]);
   const [totalStudents, setTotalStudents] = useState(0);
   const [activeExams, setActiveExams] = useState(0);
 
-  // Add teacher dialog
-  const [showAddTeacher, setShowAddTeacher] = useState(false);
-  const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState(() => Math.random().toString(36).slice(2, 10));
-  const [addingTeacher, setAddingTeacher] = useState(false);
+  // Add/Edit teacher dialog
+  const [showTeacherDialog, setShowTeacherDialog] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<TeacherRow | null>(null);
+  const [teacherName, setTeacherName] = useState("");
+  const [teacherEmail, setTeacherEmail] = useState("");
+  const [teacherPassword, setTeacherPassword] = useState(() => Math.random().toString(36).slice(2, 10));
+  const [savingTeacher, setSavingTeacher] = useState(false);
+
+  // Delete confirm
+  const [deleteTeacher, setDeleteTeacher] = useState<TeacherRow | null>(null);
 
   // Results sort
   const [sortField, setSortField] = useState<"score" | "student_name">("score");
@@ -69,7 +74,6 @@ const AdminDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/login"); return; }
 
-      // Check admin role
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
@@ -78,7 +82,6 @@ const AdminDashboard = () => {
       const isAdmin = roles?.some((r) => r.role === "admin");
       const isTeacher = roles?.some((r) => r.role === "teacher");
       if (!isAdmin && !isTeacher) { navigate("/login"); return; }
-      // If only teacher, redirect to teacher dashboard
       if (!isAdmin && isTeacher) { navigate("/teacher"); return; }
 
       await loadData();
@@ -88,7 +91,6 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   const loadData = async () => {
-    // Load all profiles with teacher role
     const { data: teacherRoles } = await supabase
       .from("user_roles")
       .select("user_id")
@@ -102,7 +104,6 @@ const AdminDashboard = () => {
         .select("id, full_name, email")
         .in("id", teacherIds);
 
-      // Get exam counts and student counts per teacher
       const teacherRows: TeacherRow[] = [];
       for (const p of profiles || []) {
         const { count: examCount } = await supabase
@@ -135,7 +136,6 @@ const AdminDashboard = () => {
       setTeachers(teacherRows);
     }
 
-    // Load all exams
     const { data: allExams } = await supabase
       .from("exams")
       .select("*")
@@ -143,14 +143,12 @@ const AdminDashboard = () => {
     setExams(allExams || []);
     setActiveExams((allExams || []).filter((e) => e.status === "active").length);
 
-    // Load all results (sessions with exam info)
     const { data: sessions } = await supabase
       .from("exam_sessions")
       .select("id, student_name, student_email, score, total_marks, status, submitted_at, exam_id");
 
     setTotalStudents(sessions?.length || 0);
 
-    // Map exam titles
     const examMap = new Map((allExams || []).map((e) => [e.id, e]));
     const resultRows: SessionRow[] = (sessions || []).map((s) => {
       const exam = examMap.get(s.exam_id);
@@ -168,40 +166,97 @@ const AdminDashboard = () => {
     navigate("/login");
   };
 
-  const handleAddTeacher = async () => {
-    if (!newEmail.trim()) return;
-    setAddingTeacher(true);
-    try {
-      // Sign up new teacher — they'll get the default 'teacher' role from the trigger
-      const { error } = await supabase.auth.signUp({
-        email: newEmail.trim(),
-        password: newPassword,
-      });
-      if (error) throw error;
+  const openAddTeacher = () => {
+    setEditingTeacher(null);
+    setTeacherName("");
+    setTeacherEmail("");
+    setTeacherPassword(Math.random().toString(36).slice(2, 10));
+    setShowTeacherDialog(true);
+  };
 
-      toast({
-        title: "Teacher added!",
-        description: `Credentials: ${newEmail} / ${newPassword}. Share these securely.`,
-      });
-      setShowAddTeacher(false);
-      setNewEmail("");
-      setNewPassword(Math.random().toString(36).slice(2, 10));
-      // Reload data
+  const openEditTeacher = (t: TeacherRow) => {
+    setEditingTeacher(t);
+    setTeacherName(t.full_name === "—" ? "" : t.full_name);
+    setTeacherEmail(t.email);
+    setTeacherPassword("");
+    setShowTeacherDialog(true);
+  };
+
+  const handleSaveTeacher = async () => {
+    setSavingTeacher(true);
+    try {
+      if (editingTeacher) {
+        // Update profile
+        const { error } = await supabase
+          .from("profiles")
+          .update({ full_name: teacherName, email: teacherEmail })
+          .eq("id", editingTeacher.id);
+        if (error) throw error;
+        toast({ title: "Teacher updated!" });
+      } else {
+        if (!teacherEmail.trim()) return;
+        const { error } = await supabase.auth.signUp({
+          email: teacherEmail.trim(),
+          password: teacherPassword,
+          options: { data: { full_name: teacherName } },
+        });
+        if (error) throw error;
+        toast({
+          title: "Teacher added!",
+          description: `Credentials: ${teacherEmail} / ${teacherPassword}. Share these securely.`,
+        });
+      }
+      setShowTeacherDialog(false);
       await loadData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
-      setAddingTeacher(false);
+      setSavingTeacher(false);
     }
+  };
+
+  const handleDeleteTeacher = async () => {
+    if (!deleteTeacher) return;
+    try {
+      // Remove teacher role
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", deleteTeacher.id)
+        .eq("role", "teacher");
+      if (error) throw error;
+      toast({ title: "Teacher removed", description: `${deleteTeacher.full_name} has been removed.` });
+      setDeleteTeacher(null);
+      await loadData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleExportResults = () => {
+    const data = sortedResults.map((r, i) => ({
+      Rank: i + 1,
+      Student: r.student_name,
+      Email: r.student_email,
+      Exam: r.exam_title,
+      Subject: r.exam_subject,
+      Score: r.score ?? 0,
+      "Total Marks": r.total_marks ?? 0,
+      "Percentage (%)": r.total_marks && r.total_marks > 0 ? Math.round(((r.score ?? 0) / r.total_marks) * 100) : 0,
+      "Submitted At": r.submitted_at ? new Date(r.submitted_at).toLocaleString() : "—",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Results");
+    XLSX.writeFile(wb, "exam_results.xlsx");
+    toast({ title: "Exported!", description: "Results downloaded as Excel file." });
   };
 
   const sortedResults = [...results]
     .filter((r) => r.status === "submitted")
     .sort((a, b) => {
       if (sortField === "score") {
-        const sa = a.score ?? 0;
-        const sb = b.score ?? 0;
-        return sortAsc ? sa - sb : sb - sa;
+        return sortAsc ? (a.score ?? 0) - (b.score ?? 0) : (b.score ?? 0) - (a.score ?? 0);
       }
       return sortAsc
         ? a.student_name.localeCompare(b.student_name)
@@ -227,7 +282,7 @@ const AdminDashboard = () => {
     { label: "Total Teachers", value: String(teachers.length), icon: Users, change: "" },
     { label: "Total Exams", value: String(exams.length), icon: FileText, change: `${activeExams} active` },
     { label: "Total Students", value: String(totalStudents), icon: TrendingUp, change: "" },
-    { label: "Submitted", value: String(results.filter((r) => r.status === "submitted").length), icon: Activity, change: "" },
+    { label: "Submitted", value: String(sortedResults.length), icon: Activity, change: "" },
   ];
 
   const navItems: { icon: typeof LayoutDashboard; label: string; tab: Tab }[] = [
@@ -286,11 +341,18 @@ const AdminDashboard = () => {
               <h1 className="text-2xl font-bold capitalize">{tab === "overview" ? "Admin Dashboard" : tab}</h1>
               <p className="text-sm text-muted-foreground">System overview and management</p>
             </div>
-            {tab === "teachers" && (
-              <Button onClick={() => setShowAddTeacher(true)} className="gap-2 gradient-primary border-0 text-primary-foreground hover:opacity-90">
-                <UserPlus className="h-4 w-4" /> Add Teacher
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {tab === "teachers" && (
+                <Button onClick={openAddTeacher} className="gap-2 gradient-primary border-0 text-primary-foreground hover:opacity-90">
+                  <UserPlus className="h-4 w-4" /> Add Teacher
+                </Button>
+              )}
+              {tab === "results" && sortedResults.length > 0 && (
+                <Button onClick={handleExportResults} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" /> Export Excel
+                </Button>
+              )}
+            </div>
           </div>
         </header>
 
@@ -317,7 +379,6 @@ const AdminDashboard = () => {
                 ))}
               </div>
 
-              {/* Recent results */}
               <Card className="border-border/50">
                 <CardHeader><CardTitle className="text-lg">Recent Submissions</CardTitle></CardHeader>
                 <CardContent>
@@ -383,7 +444,7 @@ const AdminDashboard = () => {
                           <th className="text-left py-3 px-4 text-muted-foreground font-medium">Email</th>
                           <th className="text-left py-3 px-4 text-muted-foreground font-medium">Exams</th>
                           <th className="text-left py-3 px-4 text-muted-foreground font-medium">Students</th>
-                          <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                          <th className="text-left py-3 px-4 text-muted-foreground font-medium">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -394,7 +455,14 @@ const AdminDashboard = () => {
                             <td className="py-3 px-4">{t.examCount}</td>
                             <td className="py-3 px-4">{t.studentCount}</td>
                             <td className="py-3 px-4">
-                              <span className="text-xs font-medium px-2 py-1 rounded-full bg-success/10 text-success">Active</span>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={() => openEditTeacher(t)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteTeacher(t)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -454,7 +522,11 @@ const AdminDashboard = () => {
           {/* Results tab */}
           {tab === "results" && (
             <Card className="border-border/50">
-              <CardHeader><CardTitle className="text-lg">All Results ({sortedResults.length} submissions)</CardTitle></CardHeader>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">All Results ({sortedResults.length} submissions)</CardTitle>
+                </div>
+              </CardHeader>
               <CardContent>
                 {sortedResults.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No results yet.</p>
@@ -463,7 +535,7 @@ const AdminDashboard = () => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border">
-                          <th className="text-left py-3 px-4 text-muted-foreground font-medium">#</th>
+                          <th className="text-left py-3 px-4 text-muted-foreground font-medium">Rank</th>
                           <th className="text-left py-3 px-4 text-muted-foreground font-medium cursor-pointer select-none" onClick={() => toggleSort("student_name")}>
                             <span className="flex items-center gap-1">Student <SortIcon field="student_name" /></span>
                           </th>
@@ -480,7 +552,7 @@ const AdminDashboard = () => {
                           const pct = r.total_marks && r.total_marks > 0 ? Math.round(((r.score ?? 0) / r.total_marks) * 100) : 0;
                           return (
                             <tr key={r.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                              <td className="py-3 px-4 text-muted-foreground">{i + 1}</td>
+                              <td className="py-3 px-4 text-muted-foreground font-semibold">{i + 1}</td>
                               <td className="py-3 px-4">
                                 <p className="font-medium">{r.student_name}</p>
                                 <p className="text-xs text-muted-foreground">{r.student_email}</p>
@@ -512,42 +584,80 @@ const AdminDashboard = () => {
           {/* Settings tab */}
           {tab === "settings" && (
             <Card className="border-border/50">
-              <CardHeader><CardTitle className="text-lg">Settings</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Platform settings will be available here.</p>
+              <CardHeader><CardTitle className="text-lg">System Settings</CardTitle></CardHeader>
+              <CardContent className="space-y-6">
+                <div className="rounded-xl border border-border/50 p-4 space-y-2">
+                  <h3 className="font-medium">Platform Info</h3>
+                  <div className="grid gap-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>ExamFlow</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Teachers</span><span>{teachers.length}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Exams</span><span>{exams.length}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Students</span><span>{totalStudents}</span></div>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/50 p-4 space-y-2">
+                  <h3 className="font-medium">Access Control</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Sign-up is disabled. Only admins can add teachers through the Teachers tab. Teachers log in with credentials provided by the admin.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
         </div>
       </main>
 
-      {/* Add Teacher Dialog */}
-      <Dialog open={showAddTeacher} onOpenChange={setShowAddTeacher}>
+      {/* Add/Edit Teacher Dialog */}
+      <Dialog open={showTeacherDialog} onOpenChange={setShowTeacherDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Teacher</DialogTitle>
-            <DialogDescription>Create a teacher account. Share the credentials securely.</DialogDescription>
+            <DialogTitle>{editingTeacher ? "Edit Teacher" : "Add New Teacher"}</DialogTitle>
+            <DialogDescription>
+              {editingTeacher ? "Update teacher information." : "Create a teacher account. Share the credentials securely."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" placeholder="teacher@school.edu" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+              <Label>Full Name</Label>
+              <Input placeholder="John Doe" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Auto-generated Password</Label>
-              <div className="flex gap-2">
-                <Input value={newPassword} readOnly className="font-mono bg-muted" />
-                <Button variant="outline" size="sm" onClick={() => setNewPassword(Math.random().toString(36).slice(2, 10))}>
-                  Regenerate
-                </Button>
-              </div>
+              <Label>Email</Label>
+              <Input type="email" placeholder="teacher@school.edu" value={teacherEmail} onChange={(e) => setTeacherEmail(e.target.value)} disabled={!!editingTeacher} />
             </div>
+            {!editingTeacher && (
+              <div className="space-y-2">
+                <Label>Auto-generated Password</Label>
+                <div className="flex gap-2">
+                  <Input value={teacherPassword} readOnly className="font-mono bg-muted" />
+                  <Button variant="outline" size="sm" onClick={() => setTeacherPassword(Math.random().toString(36).slice(2, 10))}>
+                    Regenerate
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddTeacher(false)}>Cancel</Button>
-            <Button onClick={handleAddTeacher} disabled={addingTeacher || !newEmail.trim()} className="gradient-primary border-0 text-primary-foreground hover:opacity-90">
-              {addingTeacher ? "Creating..." : "Create Teacher"}
+            <Button variant="outline" onClick={() => setShowTeacherDialog(false)}>Cancel</Button>
+            <Button onClick={handleSaveTeacher} disabled={savingTeacher || (!editingTeacher && !teacherEmail.trim())} className="gradient-primary border-0 text-primary-foreground hover:opacity-90">
+              {savingTeacher ? "Saving..." : editingTeacher ? "Update" : "Create Teacher"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteTeacher} onOpenChange={() => setDeleteTeacher(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Teacher</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove <strong>{deleteTeacher?.full_name}</strong> ({deleteTeacher?.email})? This will revoke their teacher access.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTeacher(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteTeacher}>Remove</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
