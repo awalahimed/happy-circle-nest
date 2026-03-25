@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   BookOpen, Plus, FileText, Users, BarChart3, LogOut,
-  LayoutDashboard, Settings, Play, Loader2, Eye, ChevronDown, ChevronUp,
+  LayoutDashboard, Settings, Play, Loader2, Eye, Pencil, Trash2, X, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
@@ -54,6 +56,15 @@ const TeacherDashboard = () => {
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Edit/Delete state
+  const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSubject, setEditSubject] = useState("");
+  const [editDuration, setEditDuration] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [deletingExamId, setDeletingExamId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -204,6 +215,53 @@ const TeacherDashboard = () => {
       toast({ title: "Profile updated!" });
     }
     setSavingProfile(false);
+  };
+
+  const openEditExam = (exam: Exam) => {
+    setEditingExam(exam);
+    setEditTitle(exam.title);
+    setEditSubject(exam.subject);
+    setEditDuration(String(exam.duration_minutes));
+  };
+
+  const handleEditExam = async () => {
+    if (!editingExam) return;
+    setEditSaving(true);
+    const { error } = await supabase
+      .from("exams")
+      .update({ title: editTitle.trim(), subject: editSubject.trim(), duration_minutes: parseInt(editDuration) || 30 })
+      .eq("id", editingExam.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setExams((prev) => prev.map((e) => e.id === editingExam.id ? { ...e, title: editTitle.trim(), subject: editSubject.trim(), duration_minutes: parseInt(editDuration) || 30 } : e));
+      toast({ title: "Exam updated!" });
+      setEditingExam(null);
+    }
+    setEditSaving(false);
+  };
+
+  const handleDeleteExam = async () => {
+    if (!deletingExamId) return;
+    setDeleteLoading(true);
+    try {
+      // Delete related data first (answers → sessions → questions → exam)
+      const { data: sessions } = await supabase.from("exam_sessions").select("id").eq("exam_id", deletingExamId);
+      if (sessions && sessions.length > 0) {
+        const sessionIds = sessions.map((s) => s.id);
+        await supabase.from("student_answers").delete().in("session_id", sessionIds);
+        await supabase.from("exam_sessions").delete().eq("exam_id", deletingExamId);
+      }
+      await supabase.from("questions").delete().eq("exam_id", deletingExamId);
+      const { error } = await supabase.from("exams").delete().eq("id", deletingExamId);
+      if (error) throw error;
+      setExams((prev) => prev.filter((e) => e.id !== deletingExamId));
+      toast({ title: "Exam deleted!" });
+    } catch (err: any) {
+      toast({ title: "Error deleting exam", description: err.message, variant: "destructive" });
+    }
+    setDeleteLoading(false);
+    setDeletingExamId(null);
   };
 
   const totalStudents = Object.values(sessionCounts).reduce((a, b) => a + b, 0);
