@@ -65,6 +65,7 @@ const TeacherDashboard = () => {
   const [editSaving, setEditSaving] = useState(false);
   const [deletingExamId, setDeletingExamId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [sendingResultsExamId, setSendingResultsExamId] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
