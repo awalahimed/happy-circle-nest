@@ -69,6 +69,12 @@ const CreateExam = () => {
     );
   };
 
+  const generateUniqueCode = () => {
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `${ts}-${rand}`.slice(0, 10);
+  };
+
   const handlePublish = async () => {
     setSaving(true);
     try {
@@ -81,6 +87,14 @@ const CreateExam = () => {
       if (questions.some((q) => !q.correctAnswer)) throw new Error("All questions must have a correct answer");
       if (questions.some((q) => q.options.some((o) => !o.trim()))) throw new Error("All options must be filled");
 
+      // Ensure unique access code
+      let code = accessCode;
+      const { data: existing } = await supabase.from("exams").select("id").eq("access_code", code).maybeSingle();
+      if (existing) {
+        code = generateUniqueCode();
+        setAccessCode(code);
+      }
+
       // Create exam
       const { data: exam, error: examError } = await supabase
         .from("exams")
@@ -89,7 +103,7 @@ const CreateExam = () => {
           title: title.trim(),
           subject: subject.trim(),
           duration_minutes: parseInt(duration) || 30,
-          access_code: accessCode,
+          access_code: code,
           status: "published",
         })
         .select()
