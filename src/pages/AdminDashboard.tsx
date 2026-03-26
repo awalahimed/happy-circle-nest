@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  BookOpen, Users, FileText, BarChart3, Settings, LogOut,
+  Users, FileText, BarChart3, Settings, LogOut,
   LayoutDashboard, UserPlus, TrendingUp, Activity, Loader2,
   Trash2, ChevronDown, ChevronUp, Pencil, Download,
 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -306,10 +307,8 @@ const AdminDashboard = () => {
       {/* Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-border/50 bg-card">
         <div className="p-6 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-            <BookOpen className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-lg">Nejo Exam Prep</span>
+          <img src={logo} alt="Nejo Ifa Boru Logo" className="h-10 w-10 rounded-full object-cover" />
+          <span className="font-bold text-lg">NejoExamPrep</span>
           <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full font-medium ml-auto">Admin</span>
         </div>
         <nav className="flex-1 px-3 space-y-1">
@@ -589,7 +588,7 @@ const AdminDashboard = () => {
                 <div className="rounded-xl border border-border/50 p-4 space-y-2">
                   <h3 className="font-medium">Platform Info</h3>
                   <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>Nejo Exam Prep</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>NejoExamPrep</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Teachers</span><span>{teachers.length}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Exams</span><span>{exams.length}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Students</span><span>{totalStudents}</span></div>

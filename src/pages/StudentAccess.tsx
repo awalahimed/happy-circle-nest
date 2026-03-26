@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, Mail, KeyRound, AlertCircle } from "lucide-react";
+import { User, Mail, KeyRound, AlertCircle } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,9 +140,7 @@ const StudentAccess = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }} className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-2xl gradient-primary flex items-center justify-center">
-            <BookOpen className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="Nejo Ifa Boru Logo" className="mx-auto mb-4 h-14 w-14 rounded-full object-cover" />
           <h1 className="text-2xl font-bold">Join Exam</h1>
           <p className="text-muted-foreground mt-1">{examTitle}</p>
         </div>

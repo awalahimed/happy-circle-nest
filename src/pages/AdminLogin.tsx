@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,10 +61,8 @@ const AdminLogin = () => {
           className="max-w-md text-primary-foreground"
         >
           <div className="mb-8 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <span className="text-2xl font-bold">Nejo Exam Prep</span>
+            <img src={logo} alt="Nejo Ifa Boru Logo" className="h-12 w-12 rounded-full object-cover border-2 border-white/30" />
+            <span className="text-2xl font-bold">NejoExamPrep</span>
           </div>
           <h2 className="text-3xl font-bold mb-4">Welcome back</h2>
           <p className="text-lg opacity-80">
@@ -81,10 +80,8 @@ const AdminLogin = () => {
           className="w-full max-w-md"
         >
           <div className="lg:hidden mb-8 flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-              <BookOpen className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold">Nejo Exam Prep</span>
+            <img src={logo} alt="Nejo Ifa Boru Logo" className="h-10 w-10 rounded-full object-cover" />
+            <span className="text-lg font-bold">NejoExamPrep</span>
           </div>
 
           <Card className="border-border/50 shadow-xl">

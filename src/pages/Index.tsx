@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, Users, ShieldCheck, ArrowRight, Sparkles, Zap, BarChart3 } from "lucide-react";
+import { Users, ShieldCheck, ArrowRight, Sparkles, Zap, BarChart3, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo.png";
 
 const features = [
   {
@@ -43,10 +44,8 @@ const Index = () => {
       <nav className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-              <BookOpen className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold">Nejo Exam Prep</span>
+            <img src={logo} alt="Nejo Ifa Boru Logo" className="h-10 w-10 rounded-full object-cover" />
+            <span className="text-lg font-bold">NejoExamPrep</span>
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
@@ -69,7 +68,7 @@ const Index = () => {
         >
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Modern Online Examination Platform
+            Nejo Ifa Boru Special Boarding Secondary School
           </div>
           <h1 className="mb-6 text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
             Exams made{" "}
@@ -77,8 +76,8 @@ const Index = () => {
             {" "}& beautiful
           </h1>
           <p className="mb-10 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Create, manage, and conduct online examinations with an intuitive platform
-            designed for teachers, students, and administrators.
+            A secure online examination platform designed for Nejo Ifa Boru Special Boarding Secondary School.
+            Students take mock exams, teachers and admins manage exams efficiently.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button size="lg" asChild className="gradient-primary border-0 text-primary-foreground hover:opacity-90 h-12 px-8 text-base">
@@ -118,7 +117,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="container text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Nejo Exam Prep. Built for modern education.
+          © {new Date().getFullYear()} NejoExamPrep — Nejo Ifa Boru Special Boarding Secondary School.
         </div>
       </footer>
     </div>

@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  BookOpen, Plus, FileText, Users, BarChart3, LogOut,
+  Plus, FileText, Users, BarChart3, LogOut,
   LayoutDashboard, Settings, Play, Loader2, Eye, Pencil, Trash2, X, Check, Mail,
 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -330,10 +331,8 @@ const TeacherDashboard = () => {
       {/* Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-border/50 bg-card">
         <div className="p-6 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-            <BookOpen className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-lg">Nejo Exam Prep</span>
+          <img src={logo} alt="Nejo Ifa Boru Logo" className="h-10 w-10 rounded-full object-cover" />
+          <span className="font-bold text-lg">NejoExamPrep</span>
         </div>
         <nav className="flex-1 px-3 space-y-1">
           {navItems.map((item) => (
