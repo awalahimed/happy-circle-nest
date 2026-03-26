@@ -103,6 +103,8 @@ Deno.serve(async (req) => {
     let sentCount = 0;
     const errors: string[] = [];
 
+    console.log(`Processing ${sessions.length} sessions for exam ${examId}`);
+
     for (const session of sessions) {
       const sessionAnswers = (answers || []).filter((a: any) => a.session_id === session.id);
       const correct = sessionAnswers.filter((a: any) => a.is_correct === true).length;
@@ -161,6 +163,17 @@ Deno.serve(async (req) => {
 </html>`;
 
       try {
+        const emailPayload = {
+          sender: {
+            name: senderName || "Nejo Exam Prep",
+            email: senderEmail || "noreply@nejoexamprep.com",
+          },
+          to: [{ email: session.student_email, name: session.student_name }],
+          subject: `Your Exam Results: ${exam.title}`,
+          htmlContent,
+        };
+        console.log(`Sending to ${session.student_email}, sender: ${emailPayload.sender.email}`);
+
         const response = await fetch(BREVO_API_URL, {
           method: "POST",
           headers: {
@@ -168,25 +181,19 @@ Deno.serve(async (req) => {
             "api-key": BREVO_API_KEY,
             "content-type": "application/json",
           },
-          body: JSON.stringify({
-            sender: {
-              name: senderName || "Nejo Exam Prep",
-              email: senderEmail || "noreply@nejoexamprep.com",
-            },
-            to: [{ email: session.student_email, name: session.student_name }],
-            subject: `Your Exam Results: ${exam.title}`,
-            htmlContent,
-          }),
+          body: JSON.stringify(emailPayload),
         });
 
+        const responseBody = await response.text();
+        console.log(`Brevo response for ${session.student_email}: ${response.status} - ${responseBody}`);
+
         if (!response.ok) {
-          const errBody = await response.text();
-          errors.push(`Failed for ${session.student_email}: [${response.status}] ${errBody}`);
+          errors.push(`Failed for ${session.student_email}: [${response.status}] ${responseBody}`);
         } else {
-          await response.text();
           sentCount++;
         }
       } catch (e: any) {
+        console.error(`Exception for ${session.student_email}:`, e.message);
         errors.push(`Failed for ${session.student_email}: ${e.message}`);
       }
     }
