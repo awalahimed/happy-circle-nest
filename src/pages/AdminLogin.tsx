@@ -84,7 +84,7 @@ const AdminLogin = () => {
             <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
               <BookOpen className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold">ExamFlow</span>
+            <span className="text-lg font-bold">Nejo Exam Prep</span>
           </div>
 
           <Card className="border-border/50 shadow-xl">
