@@ -76,8 +76,8 @@ const Index = () => {
             {" "}& beautiful
           </h1>
           <p className="mb-10 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Create, manage, and conduct online examinations with an intuitive platform
-            designed for teachers, students, and administrators.
+            A secure online examination platform designed for Nejo Ifa Boru Special Boarding Secondary School.
+            Students take mock exams, teachers and admins manage exams efficiently.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button size="lg" asChild className="gradient-primary border-0 text-primary-foreground hover:opacity-90 h-12 px-8 text-base">
