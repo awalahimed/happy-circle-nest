@@ -63,7 +63,7 @@ const AdminLogin = () => {
             <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">
               <BookOpen className="h-5 w-5" />
             </div>
-            <span className="text-2xl font-bold">ExamFlow</span>
+            <span className="text-2xl font-bold">Nejo Exam Prep</span>
           </div>
           <h2 className="text-3xl font-bold mb-4">Welcome back</h2>
           <p className="text-lg opacity-80">
@@ -84,7 +84,7 @@ const AdminLogin = () => {
             <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
               <BookOpen className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold">ExamFlow</span>
+            <span className="text-lg font-bold">Nejo Exam Prep</span>
           </div>
 
           <Card className="border-border/50 shadow-xl">

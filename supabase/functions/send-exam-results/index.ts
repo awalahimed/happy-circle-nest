@@ -28,20 +28,25 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // Use service role client for data access
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Verify user with anon client
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
 
     const { examId, senderEmail, senderName } = await req.json();
     if (!examId) {
@@ -52,7 +57,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify teacher owns this exam
-    const { data: exam, error: examError } = await supabase
+    const { data: exam, error: examError } = await supabaseAdmin
       .from("exams")
       .select("*")
       .eq("id", examId)
@@ -67,7 +72,7 @@ Deno.serve(async (req) => {
     }
 
     // Get all submitted sessions
-    const { data: sessions } = await supabase
+    const { data: sessions } = await supabaseAdmin
       .from("exam_sessions")
       .select("*")
       .eq("exam_id", examId)
@@ -81,7 +86,7 @@ Deno.serve(async (req) => {
     }
 
     // Get questions for this exam
-    const { data: questions } = await supabase
+    const { data: questions } = await supabaseAdmin
       .from("questions")
       .select("*")
       .eq("exam_id", examId);
@@ -90,7 +95,7 @@ Deno.serve(async (req) => {
 
     // Get all answers
     const sessionIds = sessions.map((s: any) => s.id);
-    const { data: answers } = await supabase
+    const { data: answers } = await supabaseAdmin
       .from("student_answers")
       .select("*")
       .in("session_id", sessionIds);
@@ -149,7 +154,7 @@ Deno.serve(async (req) => {
       </p>
     </div>
     <div style="background: #f9fafb; padding: 16px 32px; text-align: center;">
-      <p style="font-size: 12px; color: #9ca3af; margin: 0;">ExamFlow — Online Examination Platform</p>
+      <p style="font-size: 12px; color: #9ca3af; margin: 0;">Nejo Exam Prep — Online Examination Platform</p>
     </div>
   </div>
 </body>
@@ -165,8 +170,8 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             sender: {
-              name: senderName || "ExamFlow",
-              email: senderEmail || "noreply@examflow.com",
+              name: senderName || "Nejo Exam Prep",
+              email: senderEmail || "noreply@nejoexamprep.com",
             },
             to: [{ email: session.student_email, name: session.student_name }],
             subject: `Your Exam Results: ${exam.title}`,

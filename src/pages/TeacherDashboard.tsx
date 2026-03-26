@@ -333,7 +333,7 @@ const TeacherDashboard = () => {
           <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
             <BookOpen className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg">ExamFlow</span>
+          <span className="font-bold text-lg">Nejo Exam Prep</span>
         </div>
         <nav className="flex-1 px-3 space-y-1">
           {navItems.map((item) => (
@@ -677,7 +677,7 @@ const ExamsList = ({ exams, sessionCounts, statusColors, onStart, onEdit, onDele
           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDelete(exam.id)}>
             <Trash2 className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/exam/${exam.access_code}`); toast({ title: "Link copied!" }); }}>
+          <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(`https://nejoexamprep.netlify.app/exam/${exam.access_code}`); toast({ title: "Link copied!" }); }}>
             <Eye className="h-4 w-4" />
           </Button>
         </div>

@@ -309,7 +309,7 @@ const AdminDashboard = () => {
           <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
             <BookOpen className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg">ExamFlow</span>
+          <span className="font-bold text-lg">Nejo Exam Prep</span>
           <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full font-medium ml-auto">Admin</span>
         </div>
         <nav className="flex-1 px-3 space-y-1">
@@ -589,7 +589,7 @@ const AdminDashboard = () => {
                 <div className="rounded-xl border border-border/50 p-4 space-y-2">
                   <h3 className="font-medium">Platform Info</h3>
                   <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>ExamFlow</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>Nejo Exam Prep</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Teachers</span><span>{teachers.length}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Exams</span><span>{exams.length}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Students</span><span>{totalStudents}</span></div>

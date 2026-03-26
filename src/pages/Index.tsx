@@ -46,7 +46,7 @@ const Index = () => {
             <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
               <BookOpen className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold">ExamFlow</span>
+            <span className="text-lg font-bold">Nejo Exam Prep</span>
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
@@ -118,7 +118,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="container text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} ExamFlow. Built for modern education.
+          © {new Date().getFullYear()} Nejo Exam Prep. Built for modern education.
         </div>
       </footer>
     </div>
