@@ -68,7 +68,7 @@ const Index = () => {
         >
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Modern Online Examination Platform
+            Nejo Ifa Boru Special Boarding Secondary School
           </div>
           <h1 className="mb-6 text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
             Exams made{" "}
