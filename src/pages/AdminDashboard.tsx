@@ -588,7 +588,7 @@ const AdminDashboard = () => {
                 <div className="rounded-xl border border-border/50 p-4 space-y-2">
                   <h3 className="font-medium">Platform Info</h3>
                   <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>Nejo Exam Prep</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>NejoExamPrep</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Teachers</span><span>{teachers.length}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Exams</span><span>{exams.length}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Total Students</span><span>{totalStudents}</span></div>
