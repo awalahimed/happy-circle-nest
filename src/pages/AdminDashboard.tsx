@@ -307,10 +307,8 @@ const AdminDashboard = () => {
       {/* Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-border/50 bg-card">
         <div className="p-6 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-            <BookOpen className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-lg">Nejo Exam Prep</span>
+          <img src={logo} alt="Nejo Ifa Boru Logo" className="h-10 w-10 rounded-full object-cover" />
+          <span className="font-bold text-lg">NejoExamPrep</span>
           <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full font-medium ml-auto">Admin</span>
         </div>
         <nav className="flex-1 px-3 space-y-1">
