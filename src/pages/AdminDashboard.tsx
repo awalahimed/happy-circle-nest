@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  BookOpen, Users, FileText, BarChart3, Settings, LogOut,
+  Users, FileText, BarChart3, Settings, LogOut,
   LayoutDashboard, UserPlus, TrendingUp, Activity, Loader2,
   Trash2, ChevronDown, ChevronUp, Pencil, Download,
 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
