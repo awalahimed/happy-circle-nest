@@ -338,7 +338,7 @@ const AdminDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold capitalize">{tab === "overview" ? "Admin Dashboard" : tab}</h1>
-              <p className="text-sm text-muted-foreground">Adminn awal System overview and management</p>
+              <p className="text-sm text-muted-foreground">Adminn  System overview and management</p>
             </div>
             <div className="flex gap-2">
               {tab === "teachers" && (
